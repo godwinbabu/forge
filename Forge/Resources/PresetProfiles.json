@@ -1,0 +1,68 @@
+[
+    {
+        "name": "Social Media",
+        "iconName": "bubble.left.and.bubble.right.fill",
+        "colorHex": "#FF3B30",
+        "isBlocklist": true,
+        "domains": [
+            "facebook.com",
+            "instagram.com",
+            "twitter.com",
+            "x.com",
+            "tiktok.com",
+            "reddit.com",
+            "snapchat.com",
+            "linkedin.com",
+            "threads.net",
+            "mastodon.social",
+            "bsky.app"
+        ],
+        "appBundleIDs": [],
+        "expandSubdomains": true,
+        "allowLocalNetwork": true,
+        "clearBrowserCaches": false
+    },
+    {
+        "name": "News & Media",
+        "iconName": "newspaper.fill",
+        "colorHex": "#FF9500",
+        "isBlocklist": true,
+        "domains": [
+            "news.ycombinator.com",
+            "cnn.com",
+            "bbc.com",
+            "nytimes.com",
+            "washingtonpost.com",
+            "theguardian.com",
+            "foxnews.com",
+            "reuters.com",
+            "apnews.com",
+            "buzzfeed.com"
+        ],
+        "appBundleIDs": [],
+        "expandSubdomains": true,
+        "allowLocalNetwork": true,
+        "clearBrowserCaches": false
+    },
+    {
+        "name": "Gaming",
+        "iconName": "gamecontroller.fill",
+        "colorHex": "#AF52DE",
+        "isBlocklist": true,
+        "domains": [
+            "store.steampowered.com",
+            "twitch.tv",
+            "discord.com",
+            "epicgames.com",
+            "roblox.com",
+            "minecraft.net"
+        ],
+        "appBundleIDs": [
+            "com.valvesoftware.steam",
+            "com.hnc.Discord"
+        ],
+        "expandSubdomains": true,
+        "allowLocalNetwork": true,
+        "clearBrowserCaches": false
+    }
+]
