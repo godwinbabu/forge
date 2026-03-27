@@ -1,0 +1,38 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.moved-aside
+xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+
+# CocoaPods (if ever used)
+Pods/
+
+# macOS
+.DS_Store
+*.swp
+*~.nib
+
+# IDE
+.idea/
+.vscode/
+
+# Secrets
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+# Claude Code
+CLAUDE.local.md
