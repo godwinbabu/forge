@@ -15,6 +15,19 @@ final class FilterManagerService {
         }
     }
 
+    func activateDNSProxy() async throws {
+        let manager = NEDNSProxyManager.shared()
+        try await manager.loadFromPreferences()
+        if !manager.isEnabled {
+            manager.isEnabled = true
+            let config = NEDNSProxyProviderProtocol()
+            config.providerBundleIdentifier = "app.forge.Forge.ForgeFilterExtension"
+            manager.providerProtocol = config
+            manager.localizedDescription = "Forge DNS Proxy"
+            try await manager.saveToPreferences()
+        }
+    }
+
     var isEnabled: Bool { NEFilterManager.shared().isEnabled }
 
     func startMonitoring(onChange: @escaping (Bool) -> Void) {

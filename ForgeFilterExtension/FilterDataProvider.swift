@@ -4,7 +4,7 @@ import ForgeKit
 
 final class FilterDataProvider: NEFilterDataProvider {
     private var activeRuleset: BlockRuleset?
-    private let ipMap = IPHostnameMap()
+    private var ipMap: IPHostnameMap { DNSProxyProvider.sharedIPMap }
     private var dohIPs = Set<String>()
     private var domainMatcher: DomainMatcher?
     private var cidrMatcher: CIDRMatcher?
@@ -12,6 +12,7 @@ final class FilterDataProvider: NEFilterDataProvider {
     private static let essentialPorts: Set<Int> = [53, 123, 67, 68, 5353]
 
     override func startFilter(completionHandler: @escaping (Error?) -> Void) {
+        ExtensionXPCService.shared.registerFilterProvider(self)
         let store = RulesetStore(directory: containerURL())
         if let ruleset = store.loadIfActive() {
             applyRuleset(ruleset)
@@ -39,16 +40,8 @@ final class FilterDataProvider: NEFilterDataProvider {
 
         guard let socketFlow = flow as? NEFilterSocketFlow else { return .allow() }
 
-        // Allow essential services in allowlist mode
-        if ruleset.mode == .allowlist {
-            if let port = socketFlow.remotePort, Self.essentialPorts.contains(port) {
-                return .allow()
-            }
-        }
-
-        // Block DoH server connections
-        if let ip = socketFlow.remoteIP, dohIPs.contains(ip) {
-            return .drop()
+        if let ipVerdict = evaluateIPRules(socketFlow, ruleset: ruleset) {
+            return ipVerdict
         }
 
         // Resolve hostname
@@ -59,7 +52,7 @@ final class FilterDataProvider: NEFilterDataProvider {
             return verdict(for: hostname, ruleset: ruleset)
         }
 
-        // No hostname — inspect outbound data for SNI in allowlist mode
+        // No hostname -- inspect outbound data for SNI in allowlist mode
         if ruleset.mode == .allowlist {
             return .filterDataVerdict(
                 withFilterInbound: false,
@@ -107,13 +100,40 @@ final class FilterDataProvider: NEFilterDataProvider {
         dohIPs = Set(ruleset.dohServerIPs)
     }
 
-    private func clearRuleset() {
+    func clearRuleset() {
         activeRuleset = nil
         domainMatcher = nil
         cidrMatcher = nil
         dohIPs.removeAll()
         let store = RulesetStore(directory: containerURL())
         store.delete()
+    }
+
+    private func evaluateIPRules(
+        _ socketFlow: NEFilterSocketFlow,
+        ruleset: BlockRuleset
+    ) -> NEFilterNewFlowVerdict? {
+        // Allow essential services in allowlist mode
+        if ruleset.mode == .allowlist {
+            if let port = socketFlow.remotePort, Self.essentialPorts.contains(port) {
+                return .allow()
+            }
+        }
+
+        guard let ip = socketFlow.remoteIP else { return nil }
+
+        // Block DoH server connections
+        if dohIPs.contains(ip) { return .drop() }
+
+        // Check CIDR rules against IP
+        if cidrMatcher?.matches(ip: ip) ?? false {
+            switch ruleset.mode {
+            case .blocklist: return .drop()
+            case .allowlist: return nil // CIDR match in allowlist means allowed, continue
+            }
+        }
+
+        return nil
     }
 
     private func verdict(for hostname: String, ruleset: BlockRuleset) -> NEFilterNewFlowVerdict {

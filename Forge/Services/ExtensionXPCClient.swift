@@ -1,54 +1,64 @@
 import Foundation
 import ForgeKit
 
-final class ExtensionXPCClient: Sendable {
+final class ExtensionXPCClient: @unchecked Sendable {
     private let machServiceName = "app.forge.Forge.ForgeFilterExtension"
+    private let lock = NSLock()
+    private var connection: NSXPCConnection?
+
+    private func getConnection() -> NSXPCConnection {
+        lock.withLock {
+            if let existing = connection { return existing }
+            let conn = NSXPCConnection(
+                machServiceName: machServiceName,
+                options: .privileged
+            )
+            conn.remoteObjectInterface = NSXPCInterface(
+                with: ForgeExtensionProtocol.self
+            )
+            conn.invalidationHandler = { [weak self] in
+                guard let self else { return }
+                self.lock.withLock { self.connection = nil }
+            }
+            conn.resume()
+            connection = conn
+            return conn
+        }
+    }
+
+    private func proxy() -> any ForgeExtensionProtocol {
+        // swiftlint:disable:next force_cast
+        getConnection().remoteObjectProxy as! ForgeExtensionProtocol
+    }
 
     func updateRuleset(_ ruleset: BlockRuleset) async throws {
         let data = try JSONEncoder().encode(ruleset)
-        let proxy = try proxy()
+        let remoteProxy = proxy()
         return try await withCheckedThrowingContinuation { continuation in
-            proxy.updateRuleset(data) { error in
+            remoteProxy.updateRuleset(data) { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
             }
         }
     }
 
     func deactivateRuleset() async throws {
-        let proxy = try proxy()
+        let remoteProxy = proxy()
         return try await withCheckedThrowingContinuation { continuation in
-            proxy.deactivateRuleset { error in
+            remoteProxy.deactivateRuleset { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
             }
         }
     }
 
     func getStatus() async -> BlockRuleset? {
-        guard let proxy = try? proxy() else { return nil }
+        let remoteProxy = proxy()
         return await withCheckedContinuation { continuation in
-            proxy.getStatus { data in
+            remoteProxy.getStatus { data in
                 guard let data else { continuation.resume(returning: nil); return }
                 continuation.resume(
                     returning: try? JSONDecoder().decode(BlockRuleset.self, from: data)
                 )
             }
         }
-    }
-
-    private func proxy() throws -> any ForgeExtensionProtocol {
-        let connection = NSXPCConnection(
-            machServiceName: machServiceName,
-            options: .privileged
-        )
-        connection.remoteObjectInterface = NSXPCInterface(
-            with: ForgeExtensionProtocol.self
-        )
-        connection.resume()
-        guard let proxy = connection.remoteObjectProxy as? any ForgeExtensionProtocol else {
-            throw NSError(domain: "ForgeXPC", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to create XPC proxy"
-            ])
-        }
-        return proxy
     }
 }

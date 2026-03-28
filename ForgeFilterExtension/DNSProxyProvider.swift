@@ -1,7 +1,6 @@
+import Network
 import NetworkExtension
 import ForgeKit
-
-private typealias NEEndpoint = NetworkExtension.NWEndpoint
 
 final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
     private var activeRuleset: BlockRuleset?
@@ -13,6 +12,7 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
         options: [String: Any]? = nil,
         completionHandler: @escaping (Error?) -> Void
     ) {
+        ExtensionXPCService.shared.registerDNSProvider(self)
         let store = RulesetStore(directory: containerURL())
         if let ruleset = store.loadIfActive() {
             applyRuleset(ruleset)
@@ -51,6 +51,11 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
         domainMatcher = DomainMatcher(rules: ruleset.domains)
     }
 
+    func clearRuleset() {
+        activeRuleset = nil
+        domainMatcher = nil
+    }
+
     private func processUDPFlow(_ flow: NEAppProxyUDPFlow) async throws {
         flow.open(withLocalFlowEndpoint: nil) { error in
             if let error { flow.closeReadWithError(error) }
@@ -62,16 +67,30 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
 
             for (datagram, endpoint) in zip(datagrams, endpoints) {
                 if let response = processDNSQuery(datagram, endpoint: endpoint) {
+                    // Blocked -- send synthetic response back to the client
                     try await writeDatagrams([response], to: flow, endpoints: [endpoint])
+                } else {
+                    // Allowed -- forward to upstream DNS and relay the response
+                    if let response = try await forwardToUpstream(
+                        datagram: datagram,
+                        endpoint: endpoint
+                    ) {
+                        try await writeDatagrams([response], to: flow, endpoints: [endpoint])
+                    }
                 }
             }
         }
     }
 
-    private func processDNSQuery(_ data: Data, endpoint: NEEndpoint) -> Data? {
+    private func processDNSQuery(_ data: Data, endpoint: NWEndpoint) -> Data? {
         guard let domain = extractDomainFromDNS(data),
               let ruleset = activeRuleset,
               let matcher = domainMatcher else { return nil }
+
+        // Record IP->hostname mapping for the content filter
+        if let ip = hostFromEndpoint(endpoint) {
+            Self.sharedIPMap.set(ip: ip, hostname: domain)
+        }
 
         let shouldBlock: Bool
         switch ruleset.mode {
@@ -83,6 +102,66 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
             return buildBlockedDNSResponse(query: data)
         }
         return nil
+    }
+
+    // MARK: - Upstream DNS Forwarding
+
+    private func forwardToUpstream(
+        datagram: Data,
+        endpoint: NWEndpoint
+    ) async throws -> Data? {
+        // Use the original endpoint the client was sending to (the system DNS server)
+        let connection = NWConnection(to: endpoint, using: .udp)
+        let continuationGuard = ContinuationGuard()
+
+        return try await withCheckedThrowingContinuation { continuation in
+            connection.stateUpdateHandler = { @Sendable state in
+                switch state {
+                case .failed(let error):
+                    connection.cancel()
+                    continuationGuard.resume(continuation, with: .failure(error))
+                case .cancelled:
+                    continuationGuard.resume(continuation, with: .success(nil))
+                default:
+                    break
+                }
+            }
+
+            connection.start(queue: .global(qos: .userInitiated))
+
+            connection.send(content: datagram, completion: .contentProcessed { @Sendable error in
+                if let error {
+                    connection.cancel()
+                    continuationGuard.resume(continuation, with: .failure(error))
+                    return
+                }
+
+                connection.receiveMessage { @Sendable data, _, _, receiveError in
+                    defer { connection.cancel() }
+                    if let receiveError {
+                        continuationGuard.resume(continuation, with: .failure(receiveError))
+                    } else {
+                        continuationGuard.resume(continuation, with: .success(data))
+                    }
+                }
+            })
+        }
+    }
+
+    // MARK: - DNS Parsing
+
+    private func hostFromEndpoint(_ endpoint: NWEndpoint) -> String? {
+        switch endpoint {
+        case .hostPort(let host, _):
+            switch host {
+            case .ipv4(let addr): return "\(addr)"
+            case .ipv6(let addr): return "\(addr)"
+            case .name(let name, _): return name
+            @unknown default: return nil
+            }
+        default:
+            return nil
+        }
     }
 
     private func extractDomainFromDNS(_ data: Data) -> String? {
@@ -133,6 +212,8 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
         return response
     }
 
+    // MARK: - Helpers
+
     private func containerURL() -> URL {
         FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: "group.app.forge"
@@ -141,8 +222,8 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
 
     private func readDatagrams(
         from flow: NEAppProxyUDPFlow
-    ) async throws -> ([Data], [NEEndpoint]) {
-        let pairs: [(Data, NEEndpoint)] = try await withCheckedThrowingContinuation { continuation in
+    ) async throws -> ([Data], [NWEndpoint]) {
+        let pairs: [(Data, NWEndpoint)] = try await withCheckedThrowingContinuation { continuation in
             flow.readDatagrams { result, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -157,7 +238,7 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
     private func writeDatagrams(
         _ datagrams: [Data],
         to flow: NEAppProxyUDPFlow,
-        endpoints: [NEEndpoint]
+        endpoints: [NWEndpoint]
     ) async throws {
         let pairs = zip(datagrams, endpoints).map { ($0.0, $0.1) }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
@@ -168,6 +249,26 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
                     continuation.resume()
                 }
             }
+        }
+    }
+}
+
+/// Thread-safe guard that ensures a continuation is resumed exactly once.
+private final class ContinuationGuard: @unchecked Sendable {
+    private let lock = NSLock()
+    private var resumed = false
+
+    func resume(
+        _ continuation: CheckedContinuation<Data?, any Error>,
+        with result: Result<Data?, any Error>
+    ) {
+        let shouldResume = lock.withLock {
+            guard !resumed else { return false }
+            resumed = true
+            return true
+        }
+        if shouldResume {
+            continuation.resume(with: result)
         }
     }
 }

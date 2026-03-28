@@ -2,12 +2,21 @@ import Foundation
 import ForgeKit
 
 final class ExtensionXPCService: NSObject, NSXPCListenerDelegate, ForgeExtensionProtocol {
+    nonisolated(unsafe) static let shared = ExtensionXPCService()
+
     private weak var filterProvider: FilterDataProvider?
     private weak var dnsProvider: DNSProxyProvider?
 
-    init(filterProvider: FilterDataProvider?, dnsProvider: DNSProxyProvider?) {
-        self.filterProvider = filterProvider
-        self.dnsProvider = dnsProvider
+    override private init() {
+        super.init()
+    }
+
+    func registerFilterProvider(_ provider: FilterDataProvider) {
+        self.filterProvider = provider
+    }
+
+    func registerDNSProvider(_ provider: DNSProxyProvider) {
+        self.dnsProvider = provider
     }
 
     func listener(
@@ -37,6 +46,8 @@ final class ExtensionXPCService: NSObject, NSXPCListenerDelegate, ForgeExtension
     func deactivateRuleset(reply: @escaping (Error?) -> Void) {
         let store = RulesetStore(directory: containerURL())
         store.delete()
+        filterProvider?.clearRuleset()
+        dnsProvider?.clearRuleset()
         reply(nil)
     }
 
