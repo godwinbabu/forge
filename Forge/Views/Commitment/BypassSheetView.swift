@@ -63,11 +63,12 @@ struct BypassSheetView: View {
     }
 
     private func cancelBypass() {
-        appState.isBypassActive = false
+        // Go back to Stage 1 so user is prompted to re-enable
         appState.bypassStage = .reenablePrompt
         appState.cooldownEndDate = nil
         let defaults = UserDefaults(suiteName: "group.app.forge") ?? .standard
-        BypassPersistence.clear(from: defaults)
+        BypassPersistence.save(stage: .reenablePrompt, to: defaults)
+        defaults.removeObject(forKey: BypassPersistence.Keys.cooldownEndDate)
     }
 
     private func formatRemainingTime() -> String {

@@ -105,19 +105,19 @@ final class BlockEngine {
     }
 
     func completeBypass(appState: AppState, modelContext: ModelContext) async {
-        // Record bypass session
-        if let endDate = appState.blockEndDate,
-           let profileName = appState.activeProfileName {
-            let session = BlockSession(
-                profileID: appState.activeProfileID,
-                profileName: profileName,
-                startDate: Date(),
-                endDate: endDate,
-                trigger: "bypass"
+        // Update existing session's trigger to "bypass"
+        if let profileName = appState.activeProfileName {
+            let descriptor = FetchDescriptor<BlockSession>(
+                predicate: #Predicate<BlockSession> { session in
+                    session.profileName == profileName && session.trigger == "manual"
+                },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
             )
-            session.actualEndDate = Date()
-            modelContext.insert(session)
-            try? modelContext.save()
+            if let existingSession = try? modelContext.fetch(descriptor).first {
+                existingSession.trigger = "bypass"
+                existingSession.actualEndDate = Date()
+                try? modelContext.save()
+            }
         }
 
         // Clear bypass persistence
