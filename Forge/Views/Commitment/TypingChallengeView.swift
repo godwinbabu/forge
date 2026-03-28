@@ -48,7 +48,7 @@ struct TypingChallengeView: View {
                     .frame(maxWidth: 500)
                     .focused($isInputFocused)
                     .autocorrectionDisabled()
-                    .onPasteCommand(of: [UTType]()) { _ in }
+                    .onPasteCommand(of: [.plainText]) { _ in }
                     .onChange(of: challengeState.userInput) {
                         if challengeState.hasError {
                             errorFlash = true

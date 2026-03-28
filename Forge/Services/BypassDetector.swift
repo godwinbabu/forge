@@ -9,10 +9,12 @@ final class BypassDetector {
 
     func startMonitoring(appState: AppState) {
         stopMonitoring()
-        timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self, weak appState] _ in
-            Task { @MainActor in
-                guard let self, let appState else { return }
-                self.checkExtensionStatus(appState: appState)
+        Task { @MainActor in
+            timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self, weak appState] _ in
+                Task { @MainActor in
+                    guard let self, let appState else { return }
+                    self.checkExtensionStatus(appState: appState)
+                }
             }
         }
     }
