@@ -21,16 +21,16 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.networkextension.filter-data</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>$(PRODUCT_MODULE_NAME).FilterExtension</string>
+		<string>$(PRODUCT_MODULE_NAME).FilterDataProvider</string>
 	</dict>
 	<key>NetworkExtension</key>
 	<dict>
 		<key>NEProviderClasses</key>
 		<dict>
 			<key>com.apple.networkextension.filter-data</key>
-			<string>$(PRODUCT_MODULE_NAME).FilterExtension</string>
+			<string>$(PRODUCT_MODULE_NAME).FilterDataProvider</string>
 			<key>com.apple.networkextension.dns-proxy</key>
-			<string>$(PRODUCT_MODULE_NAME).DNSProxyExtension</string>
+			<string>$(PRODUCT_MODULE_NAME).DNSProxyProvider</string>
 		</dict>
 	</dict>
 </dict>
