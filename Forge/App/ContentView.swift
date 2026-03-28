@@ -1,18 +1,29 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
+    @Environment(AppState.self) private var appState
+
     var body: some View {
+        @Bindable var state = appState
         NavigationSplitView {
-            List {
-                NavigationLink("Dashboard", value: "dashboard")
-                NavigationLink("Profiles", value: "profiles")
-                NavigationLink("Settings", value: "settings")
+            List(
+                SidebarItem.allCases,
+                selection: $state.selectedSidebarItem
+            ) { item in
+                Label(item.rawValue, systemImage: item.icon)
             }
             .navigationTitle("Forge")
         } detail: {
-            Text("Select an item")
-                .foregroundStyle(.secondary)
+            switch appState.selectedSidebarItem {
+            case .dashboard:
+                DashboardView()
+            case .profiles:
+                ProfileListView()
+            case .settings:
+                SettingsView()
+            }
         }
-        .frame(minWidth: 600, minHeight: 400)
+        .frame(minWidth: 700, minHeight: 500)
     }
 }

@@ -1,7 +1,7 @@
 included:
   - Forge
+  - ForgeKit
   - ForgeFilterExtension
-  - ForgeHelper
   - forge-cli
   - ForgeWidget
   - ForgeTests
