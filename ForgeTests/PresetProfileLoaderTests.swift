@@ -17,13 +17,15 @@ private struct TestPresetProfileData: Codable {
 @Suite("PresetProfileLoader Tests")
 struct PresetProfileLoaderTests {
     @Test func loadsPresetsFromJSON() throws {
-        let json = """
-        [{"name":"Social Media","iconName":"bubble.left.and.bubble.right.fill",\
+        let jsonString = """
+        [{"name":"Social Media",\
+        "iconName":"bubble.left.and.bubble.right.fill",\
         "colorHex":"#FF3B30","isBlocklist":true,\
         "domains":["facebook.com","instagram.com"],"appBundleIDs":[],\
         "expandSubdomains":true,"allowLocalNetwork":true,\
         "clearBrowserCaches":false}]
-        """.data(using: .utf8)!
+        """
+        let json = Data(jsonString.utf8)
 
         let presets = try JSONDecoder().decode(
             [TestPresetProfileData].self,
@@ -35,7 +37,7 @@ struct PresetProfileLoaderTests {
     }
 
     @Test func emptyArrayProducesNoPresets() throws {
-        let json = "[]".data(using: .utf8)!
+        let json = Data("[]".utf8)
         let presets = try JSONDecoder().decode(
             [TestPresetProfileData].self,
             from: json

@@ -6,9 +6,8 @@ import Foundation
 struct BlockEngineTests {
 
     @Test func buildRulesetFromProfile() {
-        let domains = ["reddit.com", "twitter.com"]
-        let ruleset = BlockEngineHelper.buildRuleset(
-            domains: domains,
+        let config = RulesetConfig(
+            domains: ["reddit.com", "twitter.com"],
             appBundleIDs: [],
             isBlocklist: true,
             expandSubdomains: true,
@@ -16,19 +15,19 @@ struct BlockEngineTests {
             durationSeconds: 3600,
             dohServerIPs: ["1.1.1.1"]
         )
+        let ruleset = BlockEngineHelper.buildRuleset(config: config)
 
         #expect(ruleset.mode == .blocklist)
         #expect(ruleset.allowLocalNetwork == true)
         #expect(ruleset.expandCommonSubdomains == true)
         #expect(ruleset.dohServerIPs == ["1.1.1.1"])
-        // With expansion: reddit.com + www.reddit.com + m.reddit.com + mobile.reddit.com + api.reddit.com
-        // + twitter.com + www.twitter.com + m.twitter.com + mobile.twitter.com + api.twitter.com
+        // With expansion: each domain + www + m + mobile + api = 5 each
         #expect(ruleset.domains.count == 10)
     }
 
     @Test func buildRulesetSetsCorrectEndDate() {
         let before = Date()
-        let ruleset = BlockEngineHelper.buildRuleset(
+        let config = RulesetConfig(
             domains: ["test.com"],
             appBundleIDs: [],
             isBlocklist: true,
@@ -37,6 +36,7 @@ struct BlockEngineTests {
             durationSeconds: 1800,
             dohServerIPs: []
         )
+        let ruleset = BlockEngineHelper.buildRuleset(config: config)
         let after = Date()
 
         #expect(ruleset.endDate >= before.addingTimeInterval(1800))
@@ -44,7 +44,7 @@ struct BlockEngineTests {
     }
 
     @Test func buildRulesetAllowlistMode() {
-        let ruleset = BlockEngineHelper.buildRuleset(
+        let config = RulesetConfig(
             domains: ["allowed.com"],
             appBundleIDs: [],
             isBlocklist: false,
@@ -53,11 +53,12 @@ struct BlockEngineTests {
             durationSeconds: 3600,
             dohServerIPs: []
         )
+        let ruleset = BlockEngineHelper.buildRuleset(config: config)
         #expect(ruleset.mode == .allowlist)
     }
 
     @Test func buildRulesetConvertsDomainsToExactRules() {
-        let ruleset = BlockEngineHelper.buildRuleset(
+        let config = RulesetConfig(
             domains: ["reddit.com"],
             appBundleIDs: [],
             isBlocklist: true,
@@ -66,6 +67,7 @@ struct BlockEngineTests {
             durationSeconds: 3600,
             dohServerIPs: []
         )
+        let ruleset = BlockEngineHelper.buildRuleset(config: config)
         #expect(ruleset.domains == [.exact("reddit.com")])
     }
 }

@@ -24,7 +24,7 @@ final class BlockEngine {
         let profileIconName = profile.iconName
         let profileColorHex = profile.colorHex
 
-        let ruleset = BlockEngineHelper.buildRuleset(
+        let config = RulesetConfig(
             domains: domains,
             appBundleIDs: appBundleIDs,
             isBlocklist: isBlocklist,
@@ -33,6 +33,7 @@ final class BlockEngine {
             durationSeconds: duration,
             dohServerIPs: dohServerIPs
         )
+        let ruleset = BlockEngineHelper.buildRuleset(config: config)
 
         try await xpcClient.updateRuleset(ruleset)
 
@@ -57,6 +58,7 @@ final class BlockEngine {
         )
 
         scheduleExpiryTimer(endDate: ruleset.endDate, appState: appState)
+        writeSharedStatus(appState: appState)
     }
 
     func extendBlock(
@@ -85,6 +87,7 @@ final class BlockEngine {
         appState.extendBlock(by: seconds)
 
         scheduleExpiryTimer(endDate: newEnd, appState: appState)
+        writeSharedStatus(appState: appState)
     }
 
     func stopBlock(appState: AppState) async {
@@ -94,6 +97,7 @@ final class BlockEngine {
         try? await xpcClient.deactivateRuleset()
 
         appState.deactivateBlock()
+        writeSharedStatus(appState: appState)
     }
 
     func checkExistingBlock(appState: AppState) async {
@@ -109,6 +113,22 @@ final class BlockEngine {
         )
 
         scheduleExpiryTimer(endDate: ruleset.endDate, appState: appState)
+    }
+
+    private func writeSharedStatus(appState: AppState) {
+        guard let defaults = UserDefaults(
+            suiteName: "group.app.forge"
+        ) else { return }
+        defaults.set(appState.isBlockActive, forKey: "isBlockActive")
+        defaults.set(appState.blockEndDate, forKey: "blockEndDate")
+        defaults.set(
+            appState.activeProfileName,
+            forKey: "activeProfileName"
+        )
+        defaults.set(
+            appState.blockedAttemptCount,
+            forKey: "blockedAttemptCount"
+        )
     }
 
     private func scheduleExpiryTimer(endDate: Date, appState: AppState) {
