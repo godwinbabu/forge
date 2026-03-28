@@ -26,14 +26,18 @@ final class ExtensionXPCClient: @unchecked Sendable {
         }
     }
 
-    private func proxy() -> any ForgeExtensionProtocol {
-        // swiftlint:disable:next force_cast
-        getConnection().remoteObjectProxy as! ForgeExtensionProtocol
+    private func proxy() throws -> any ForgeExtensionProtocol {
+        guard let proxy = getConnection().remoteObjectProxy as? any ForgeExtensionProtocol else {
+            throw NSError(domain: "ForgeXPC", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to create XPC proxy"
+            ])
+        }
+        return proxy
     }
 
     func updateRuleset(_ ruleset: BlockRuleset) async throws {
         let data = try JSONEncoder().encode(ruleset)
-        let remoteProxy = proxy()
+        let remoteProxy = try proxy()
         return try await withCheckedThrowingContinuation { continuation in
             remoteProxy.updateRuleset(data) { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
@@ -42,7 +46,7 @@ final class ExtensionXPCClient: @unchecked Sendable {
     }
 
     func deactivateRuleset() async throws {
-        let remoteProxy = proxy()
+        let remoteProxy = try proxy()
         return try await withCheckedThrowingContinuation { continuation in
             remoteProxy.deactivateRuleset { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
@@ -51,7 +55,7 @@ final class ExtensionXPCClient: @unchecked Sendable {
     }
 
     func getStatus() async -> BlockRuleset? {
-        let remoteProxy = proxy()
+        guard let remoteProxy = try? proxy() else { return nil }
         return await withCheckedContinuation { continuation in
             remoteProxy.getStatus { data in
                 guard let data else { continuation.resume(returning: nil); return }
