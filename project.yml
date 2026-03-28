@@ -187,6 +187,17 @@ schemes:
     archive:
       config: Release
 
+  ForgeKit:
+    build:
+      targets:
+        ForgeKit: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ForgeTests
+
   forge-cli:
     build:
       targets:

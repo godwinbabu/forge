@@ -104,6 +104,35 @@ final class BlockEngine {
         writeSharedStatus(appState: appState)
     }
 
+    func completeBypass(appState: AppState, modelContext: ModelContext) async {
+        // Update existing session's trigger to "bypass"
+        if let profileName = appState.activeProfileName {
+            let descriptor = FetchDescriptor<BlockSession>(
+                predicate: #Predicate<BlockSession> { session in
+                    session.profileName == profileName && session.trigger == "manual"
+                },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+            if let existingSession = try? modelContext.fetch(descriptor).first {
+                existingSession.trigger = "bypass"
+                existingSession.actualEndDate = Date()
+                try? modelContext.save()
+            }
+        }
+
+        // Clear bypass persistence
+        let defaults = UserDefaults(suiteName: "group.app.forge") ?? .standard
+        BypassPersistence.clear(from: defaults)
+
+        // Stop the block
+        await stopBlock(appState: appState)
+
+        // Clear bypass UI state
+        appState.isBypassActive = false
+        appState.bypassStage = .reenablePrompt
+        appState.cooldownEndDate = nil
+    }
+
     func checkExistingBlock(appState: AppState) async {
         guard let ruleset = await xpcClient.getStatus() else { return }
         if ruleset.isExpired { return }

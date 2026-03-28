@@ -39,6 +39,7 @@ Forge.xcodeproj
 
 # Claude Code
 CLAUDE.local.md
+.worktrees/
 
 # local files
 local

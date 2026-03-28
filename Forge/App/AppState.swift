@@ -17,6 +17,11 @@ final class AppState {
     var showingDurationPicker = false
     var selectedDuration: TimeInterval = 3600 // 1 hour default
 
+    // Bypass state
+    var isBypassActive = false
+    var bypassStage: BypassStage = .reenablePrompt
+    var cooldownEndDate: Date?
+
     func activateBlock(
         profileID: UUID,
         profileName: String,
