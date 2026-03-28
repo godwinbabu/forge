@@ -110,13 +110,8 @@ final class DNSProxyProvider: NEDNSProxyProvider, @unchecked Sendable {
         datagram: Data,
         endpoint: NWEndpoint
     ) async throws -> Data? {
-        // Hardcode upstream to avoid forwarding loops when the system DNS
-        // resolver points back at the proxy.
-        let upstreamEndpoint = NWEndpoint.hostPort(
-            host: .ipv4(.init("1.1.1.1")!),
-            port: .init(integerLiteral: 53)
-        )
-        let connection = NWConnection(to: upstreamEndpoint, using: .udp)
+        // Use the original endpoint the client was sending to (the system DNS server)
+        let connection = NWConnection(to: endpoint, using: .udp)
         let continuationGuard = ContinuationGuard()
 
         return try await withCheckedThrowingContinuation { continuation in

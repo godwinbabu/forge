@@ -94,11 +94,7 @@ final class BlockEngine {
         expiryTimer?.invalidate()
         expiryTimer = nil
 
-        do {
-            try await xpcClient.deactivateRuleset()
-        } catch {
-            print("[BlockEngine] Failed to deactivate ruleset: \(error)")
-        }
+        try? await xpcClient.deactivateRuleset()
 
         appState.deactivateBlock()
         writeSharedStatus(appState: appState)

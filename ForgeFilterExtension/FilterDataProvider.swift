@@ -49,16 +49,6 @@ final class FilterDataProvider: NEFilterDataProvider {
             ?? socketFlow.remoteIP.flatMap { ipMap.hostname(for: $0) }
 
         if let hostname = hostname {
-            // Check port-specific rules when port info is available
-            if let port = socketFlow.remotePort {
-                let portMatched = domainMatcher?.matchesWithPort(hostname, port: port) ?? false
-                if portMatched {
-                    switch ruleset.mode {
-                    case .blocklist: return .drop()
-                    case .allowlist: return .allow()
-                    }
-                }
-            }
             return verdict(for: hostname, ruleset: ruleset)
         }
 
@@ -132,17 +122,15 @@ final class FilterDataProvider: NEFilterDataProvider {
 
         guard let ip = socketFlow.remoteIP else { return nil }
 
-        // Check CIDR rules first (before DoH) so allowlist CIDR entries are honoured
+        // Block DoH server connections
+        if dohIPs.contains(ip) { return .drop() }
+
+        // Check CIDR rules against IP
         if cidrMatcher?.matches(ip: ip) ?? false {
             switch ruleset.mode {
             case .blocklist: return .drop()
             case .allowlist: return nil // CIDR match in allowlist means allowed, continue
             }
-        }
-
-        // Block DoH only in blocklist mode to avoid bypassing allowlist CIDR rules
-        if ruleset.mode == .blocklist && dohIPs.contains(ip) {
-            return .drop()
         }
 
         return nil
