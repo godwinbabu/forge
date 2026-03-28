@@ -20,3 +20,31 @@ public struct TypingChallengeGenerator: Sendable {
         return template.replacingOccurrences(of: "{TIME}", with: remainingTime)
     }
 }
+
+public struct TypingChallengeState: Sendable {
+    public var targetText: String
+    public var userInput: String = ""
+
+    public init(targetText: String) {
+        self.targetText = targetText
+    }
+
+    public var hasError: Bool {
+        guard !userInput.isEmpty else { return false }
+        return !targetText.hasPrefix(userInput)
+    }
+
+    public var isComplete: Bool {
+        userInput == targetText
+    }
+
+    public var progress: Double {
+        guard !targetText.isEmpty else { return 0 }
+        return Double(userInput.count) / Double(targetText.count)
+    }
+
+    public mutating func reset(newTarget: String) {
+        targetText = newTarget
+        userInput = ""
+    }
+}
