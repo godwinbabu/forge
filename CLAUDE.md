@@ -4,12 +4,13 @@
 Forge is a macOS focus app that blocks distracting websites and apps with an unbypassable commitment mechanism. It is a complete rewrite of SelfControl in Swift/SwiftUI for macOS 15+.
 
 ## Architecture
+- **ForgeKit** — Shared framework (models, matching, XPC protocol)
 - **Forge** — SwiftUI menu bar app (main target)
-- **ForgeFilterExtension** — System Extension (NEFilterDataProvider + NEDNSProxyProvider + EndpointSecurity)
-- **ForgeHelper** — Privileged helper (SMJobBless, runs as root, manages PF rules)
+- **ForgeFilterExtension** — System Extension (NEFilterDataProvider + NEDNSProxyProvider)
 - **forge-cli** — Command-line tool (Swift ArgumentParser)
 - **ForgeWidget** — WidgetKit extension
-- Three enforcement layers: System Extension → PF Firewall → Polling Daemon
+- Single enforcement layer: Network Extension (persists across reboots)
+- Commitment mechanism: bypass detection + typing challenge + cooldown (Phase 2)
 
 ## Build System
 - XcodeGen generates Forge.xcodeproj from `project.yml`
