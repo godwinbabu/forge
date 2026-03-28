@@ -34,5 +34,16 @@ Pods/
 *.mobileprovision
 *.provisionprofile
 
+# Generated Xcode project (regenerate with `xcodegen generate`)
+Forge.xcodeproj
+
 # Claude Code
 CLAUDE.local.md
+
+# local files
+local
+
+# Sparkle keys
+*.pem
+dsa_priv.pem
+eddsa_key
