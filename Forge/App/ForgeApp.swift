@@ -1,16 +1,38 @@
 import SwiftUI
 import SwiftData
+import ForgeKit
 
 @main
 struct ForgeApp: App {
     @State private var appState = AppState()
     @State private var blockEngine = BlockEngine()
+    @State private var bypassDetector = BypassDetector()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .overlay {
+                    if appState.isBypassActive {
+                        BypassSheetView(
+                            appState: appState,
+                            blockEngine: blockEngine
+                        )
+                    }
+                }
                 .environment(appState)
                 .environment(blockEngine)
+                .task {
+                    let defaults = UserDefaults(suiteName: "group.app.forge") ?? .standard
+                    if let persisted = BypassPersistence.restore(from: defaults) {
+                        appState.isBypassActive = true
+                        appState.bypassStage = persisted.stage
+                        if persisted.stage == .cooldown,
+                           let cooldownEnd = defaults.object(forKey: BypassPersistence.Keys.cooldownEndDate) as? Date {
+                            appState.cooldownEndDate = cooldownEnd
+                        }
+                    }
+                    bypassDetector.startMonitoring(appState: appState)
+                }
         }
         .modelContainer(for: [
             BlockProfile.self,
