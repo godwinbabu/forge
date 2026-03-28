@@ -26,6 +26,18 @@ packages:
     from: "1.5.0"
 
 targets:
+  ForgeKit:
+    type: framework
+    platform: macOS
+    sources:
+      - path: ForgeKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.forge.ForgeKit
+        PRODUCT_MODULE_NAME: ForgeKit
+        GENERATE_INFOPLIST_FILE: true
+        DEFINES_MODULE: true
+
   Forge:
     type: application
     platform: macOS
@@ -33,7 +45,6 @@ targets:
       - path: Forge
         excludes:
           - "**/*.entitlements"
-          - "Info.plist"
     resources:
       - path: Forge/Resources
     settings:
@@ -42,7 +53,6 @@ targets:
         DEFINES_MODULE: true
         PRODUCT_MODULE_NAME: Forge
         ENABLE_TESTING_SEARCH_PATHS: true
-        INFOPLIST_FILE: Forge/Info.plist
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_LSUIElement: true
         INFOPLIST_KEY_CFBundleDisplayName: Forge
@@ -52,10 +62,9 @@ targets:
         ENABLE_HARDENED_RUNTIME: true
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
     dependencies:
-      - target: ForgeFilterExtension
+      - target: ForgeKit
         embed: true
-        codeSign: true
-      - target: ForgeHelper
+      - target: ForgeFilterExtension
         embed: true
         codeSign: true
       - target: ForgeWidget
@@ -80,23 +89,11 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         INFOPLIST_FILE: ForgeFilterExtension/Info.plist
         SYSTEM_EXTENSION_INSTALL_CODE_SIGN_IDENTITY: ""
+    dependencies:
+      - target: ForgeKit
+        embed: false
     frameworks:
       - NetworkExtension.framework
-
-  ForgeHelper:
-    type: tool
-    platform: macOS
-    sources:
-      - path: ForgeHelper
-        excludes:
-          - "**/*.plist"
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.forge.helper
-        ENABLE_HARDENED_RUNTIME: true
-        GENERATE_INFOPLIST_FILE: false
-        INFOPLIST_FILE: ForgeHelper/Info.plist
-        SKIP_INSTALL: true
 
   forge-cli:
     type: tool
@@ -139,10 +136,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.forge.ForgeTests
         GENERATE_INFOPLIST_FILE: true
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Forge.app/Contents/MacOS/Forge"
-        BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
-      - target: Forge
+      - target: ForgeKit
 
   ForgeIntegrationTests:
     type: bundle.unit-test
@@ -175,8 +170,8 @@ schemes:
     build:
       targets:
         Forge: all
+        ForgeKit: all
         ForgeFilterExtension: all
-        ForgeHelper: all
         ForgeWidget: all
         forge-cli: all
     run:
