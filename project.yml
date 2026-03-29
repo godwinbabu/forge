@@ -89,13 +89,13 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         INFOPLIST_FILE: ForgeFilterExtension/Info.plist
         SYSTEM_EXTENSION_INSTALL_CODE_SIGN_IDENTITY: ""
+        OTHER_LDFLAGS: "$(inherited) -lEndpointSecurity"
     dependencies:
       - target: ForgeKit
         embed: false
     frameworks:
       - NetworkExtension.framework
       - Network.framework
-      - EndpointSecurity.framework
 
   forge-cli:
     type: tool
