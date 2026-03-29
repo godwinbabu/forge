@@ -53,4 +53,12 @@ extension Color {
             blue: Double(int & 0xFF) / 255
         )
     }
+
+    var hexString: String {
+        let resolved = NSColor(self).usingColorSpace(.sRGB) ?? NSColor(self)
+        let r = Int(round(resolved.redComponent * 255))
+        let g = Int(round(resolved.greenComponent * 255))
+        let b = Int(round(resolved.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", r, g, b)
+    }
 }
