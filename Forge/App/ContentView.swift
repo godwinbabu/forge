@@ -6,6 +6,7 @@ struct ContentView: View {
     @Environment(BlockEngine.self) private var blockEngine
     @Environment(\.modelContext) private var modelContext
     @State private var scheduleEvaluator = ScheduleEvaluator()
+    @State private var iCloudSync = ICloudSyncService()
 
     var body: some View {
         @Bindable var state = appState
@@ -53,6 +54,7 @@ struct ContentView: View {
                 blockEngine: blockEngine,
                 modelContext: modelContext
             )
+            iCloudSync.start(modelContext: modelContext)
         }
     }
 }
