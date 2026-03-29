@@ -166,7 +166,7 @@ struct ProfileListView: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
-        panel.begin { response in
+        panel.begin { [modelContext] response in
             guard response == .OK, let url = panel.url else { return }
             do {
                 let data = try Data(contentsOf: url)
@@ -182,10 +182,14 @@ struct ProfileListView: View {
                     allowLocalNetwork: draft.allowLocalNetwork,
                     clearBrowserCaches: draft.clearBrowserCaches
                 )
-                modelContext.insert(profile)
+                Task { @MainActor in
+                    modelContext.insert(profile)
+                }
             } catch {
-                importError = error.localizedDescription
-                showingImportError = true
+                Task { @MainActor in
+                    importError = error.localizedDescription
+                    showingImportError = true
+                }
             }
         }
     }

@@ -9,13 +9,13 @@ struct DomainListEditor: View {
 
     var body: some View {
         Section("Domains") {
-            ForEach(domains, id: \.self) { domain in
+            ForEach(Array(domains.enumerated()), id: \.offset) { index, domain in
                 HStack {
                     Text(domain)
                         .font(.system(.body, design: .monospaced))
                     Spacer()
                     Button(role: .destructive) {
-                        domains.removeAll { $0 == domain }
+                        domains.remove(at: index)
                     } label: {
                         Image(systemName: "minus.circle.fill")
                             .foregroundStyle(.red)
