@@ -14,6 +14,12 @@ struct SettingsView: View {
                     }
             }
 
+            Section("Updates") {
+                Button("Check for Updates...") {
+                    UpdateService().checkForUpdates()
+                }
+            }
+
             Section("Blocking") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Default block duration: \(Int(defaultDuration)) minutes")
