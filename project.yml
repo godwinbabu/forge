@@ -95,6 +95,7 @@ targets:
     frameworks:
       - NetworkExtension.framework
       - Network.framework
+      - EndpointSecurity.framework
 
   forge-cli:
     type: tool
