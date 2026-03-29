@@ -1,16 +1,5 @@
 import Foundation
-
-struct PresetProfileData: Codable {
-    let name: String
-    let iconName: String
-    let colorHex: String
-    let isBlocklist: Bool
-    let domains: [String]
-    let appBundleIDs: [String]
-    let expandSubdomains: Bool
-    let allowLocalNetwork: Bool
-    let clearBrowserCaches: Bool
-}
+import ForgeKit
 
 enum PresetProfileLoader {
     static func load(from data: Data) throws -> [PresetProfileData] {
