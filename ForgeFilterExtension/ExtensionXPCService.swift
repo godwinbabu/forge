@@ -6,9 +6,14 @@ final class ExtensionXPCService: NSObject, NSXPCListenerDelegate, ForgeExtension
 
     private weak var filterProvider: FilterDataProvider?
     private weak var dnsProvider: DNSProxyProvider?
+    private let esBlocker = EndpointSecurityBlocker()
 
     override private init() {
         super.init()
+    }
+
+    func createESClient() -> Bool {
+        esBlocker.createClient()
     }
 
     func registerFilterProvider(_ provider: FilterDataProvider) {
@@ -37,6 +42,9 @@ final class ExtensionXPCService: NSObject, NSXPCListenerDelegate, ForgeExtension
             try store.save(ruleset)
             filterProvider?.applyRuleset(ruleset)
             dnsProvider?.applyRuleset(ruleset)
+            if !ruleset.appBundleIDs.isEmpty {
+                esBlocker.activate(bundleIDs: Set(ruleset.appBundleIDs))
+            }
             reply(nil)
         } catch {
             reply(error)
@@ -48,6 +56,7 @@ final class ExtensionXPCService: NSObject, NSXPCListenerDelegate, ForgeExtension
         store.delete()
         filterProvider?.clearRuleset()
         dnsProvider?.clearRuleset()
+        esBlocker.deactivate()
         reply(nil)
     }
 

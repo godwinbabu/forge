@@ -6,6 +6,7 @@ import ForgeKit
 final class BlockEngine {
     private let xpcClient = ExtensionXPCClient()
     private var expiryTimer: Timer?
+    private let workspaceAppBlocker = WorkspaceAppBlocker()
 
     func startBlock(
         profile: BlockProfile,
@@ -59,6 +60,10 @@ final class BlockEngine {
 
         scheduleExpiryTimer(endDate: ruleset.endDate, appState: appState)
         writeSharedStatus(appState: appState)
+
+        if !appBundleIDs.isEmpty {
+            workspaceAppBlocker.activate(bundleIDs: Set(appBundleIDs))
+        }
     }
 
     func extendBlock(
@@ -101,6 +106,7 @@ final class BlockEngine {
         }
 
         appState.deactivateBlock()
+        workspaceAppBlocker.deactivate()
         writeSharedStatus(appState: appState)
     }
 
@@ -146,6 +152,10 @@ final class BlockEngine {
         )
 
         scheduleExpiryTimer(endDate: ruleset.endDate, appState: appState)
+
+        if !ruleset.appBundleIDs.isEmpty {
+            workspaceAppBlocker.activate(bundleIDs: Set(ruleset.appBundleIDs))
+        }
     }
 
     private func writeSharedStatus(appState: AppState) {
