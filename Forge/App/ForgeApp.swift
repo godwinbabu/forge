@@ -7,6 +7,7 @@ struct ForgeApp: App {
     @State private var appState = AppState()
     @State private var blockEngine = BlockEngine()
     @State private var bypassDetector = BypassDetector()
+    @State private var appDelegate = ForgeAppDelegate()
 
     var body: some Scene {
         WindowGroup {
@@ -32,6 +33,8 @@ struct ForgeApp: App {
                         }
                     }
                     bypassDetector.startMonitoring(appState: appState)
+                    appDelegate.appState = appState
+                    NSApplication.shared.delegate = appDelegate
                 }
         }
         .commands {
