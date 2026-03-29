@@ -2,44 +2,67 @@
 
 > *Forge your focus. Block distractions. No compromises.*
 
-Forge is a modern macOS app that blocks distracting websites and apps with an unbypassable commitment mechanism. It is the spiritual successor to [SelfControl](https://github.com/SelfControlApp/selfcontrol), rebuilt from the ground up in Swift/SwiftUI for macOS 15+.
+Forge is a modern macOS focus app that blocks distracting websites and apps with an unbypassable commitment mechanism. Built in Swift/SwiftUI for macOS 15+.
 
-## Key Features
+## Features
 
-- **Website blocking** with DNS-over-HTTPS bypass protection (Network Extension)
-- **App blocking** at the kernel level (EndpointSecurity)
-- **Three-layer enforcement** — blocks survive extension disabling, app deletion, and reboots
-- **Profiles** — named blocking configurations (Social Media, Work Mode, Study, etc.)
-- **Recurring schedules** — blocks start automatically on a weekly cadence
-- **Usage insights** — focus time, blocked attempts, streaks (Swift Charts)
-- **Cross-device sync** — profiles and schedules sync via iCloud
-- **Menu bar-first UX** — SwiftUI, Liquid Glass ready, keyboard-driven
-- **Desktop widgets** — interactive WidgetKit widgets
+- **Website blocking** — DNS interception + content filtering via Network Extension, with DNS-over-HTTPS bypass protection
+- **App blocking** — kernel-level launch denial via EndpointSecurity, with NSWorkspace fallback
+- **Commitment mechanism** — three-stage bypass friction: re-enable prompt → typing challenge → 10-minute cooldown
+- **Profiles** — named blocking configurations with domain lists, app lists, and per-profile options
+- **Recurring schedules** — blocks start automatically on a weekly cadence with overnight span support
+- **Usage insights** — focus time trends, blocked attempt counts, streak tracking via Swift Charts
+- **Command palette** — ⌘K fuzzy search across all actions
+- **Desktop widgets** — live countdown timer and blocked attempt count
+- **Cross-device sync** — profiles sync via iCloud (NSUbiquitousKeyValueStore)
+- **Shortcuts integration** — query block status via Siri and Shortcuts.app
+- **Notifications** — block start, ending soon (5 min), and block ended alerts
+- **Menu bar-first** — primary interaction via menu bar popover
 - **Privacy-first** — all data local, optional iCloud sync, optional crash reporting
-- **Clean restoration** — every system modification tracked and fully reversible
+- **Auto-updates** — Sparkle 2 with EdDSA-signed appcast
 
 ## Architecture
 
 ```
-Forge.app (SwiftUI)
-├── ForgeFilterExtension.systemextension (NE + DNS Proxy + EndpointSecurity)
-├── ForgeHelper (privileged, PF rules + cleanup timer)
-├── forge-cli (command-line tool)
-└── ForgeWidget (WidgetKit)
+Forge.app (SwiftUI, menu bar + window)
+├── ForgeKit (shared framework — models, matching, protocols)
+├── ForgeFilterExtension.systemextension
+│     ├── NEFilterDataProvider (network traffic filtering)
+│     ├── NEDNSProxyProvider (DNS interception)
+│     └── EndpointSecurity (app launch blocking)
+├── forge-cli (status queries + emergency recovery)
+└── ForgeWidget (WidgetKit — countdown + stats)
 ```
 
-## Documentation
+## Building
 
-- [Design Specification](docs/design-spec.md)
-- [Competitive Research](docs/competitive-research.md)
-- [SelfControl v4 Feature Inventory](docs/v4-feature-inventory.md)
-- [SelfControl v4 Architectural Review](docs/architectural-review.md)
+```bash
+# Generate Xcode project
+brew install xcodegen
+xcodegen generate
+
+# Build
+xcodebuild -scheme Forge -destination 'platform=macOS' build
+
+# Run tests
+xcodebuild test -scheme ForgeKit -destination 'platform=macOS'
+```
 
 ## Requirements
 
 - macOS 15 (Sequoia) or later
 - Xcode 16+
-- Apple Developer Program membership (for Network Extension and EndpointSecurity entitlements)
+- Apple Developer Program membership (Network Extension + EndpointSecurity entitlements)
+
+## CLI
+
+```bash
+# Check block status
+forge status
+
+# Emergency recovery (clears all block state)
+forge recover --force
+```
 
 ## License
 

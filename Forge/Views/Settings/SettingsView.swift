@@ -4,6 +4,7 @@ import ServiceManagement
 struct SettingsView: View {
     @AppStorage("forge.launchAtLogin") private var launchAtLogin = false
     @AppStorage("forge.defaultDurationMinutes") private var defaultDuration = 60.0
+    @AppStorage("forge.sendCrashReports") private var sendCrashReports = false
 
     var body: some View {
         Form {
@@ -12,6 +13,12 @@ struct SettingsView: View {
                     .onChange(of: launchAtLogin) {
                         updateLoginItem()
                     }
+            }
+
+            Section("Updates") {
+                Button("Check for Updates...") {
+                    UpdateService().checkForUpdates()
+                }
             }
 
             Section("Blocking") {
@@ -31,6 +38,13 @@ struct SettingsView: View {
                         performRecovery()
                     }
                 }
+            }
+
+            Section("Privacy") {
+                Toggle("Send anonymized crash reports", isOn: $sendCrashReports)
+                Text("Help improve Forge by sending anonymous crash data. No personal information is collected.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("About") {
