@@ -73,6 +73,9 @@ final class ScheduleEvaluator {
 
             let duration = TimeInterval(max(remainingMinutes, 1) * 60)
 
+            let endDate = Date().addingTimeInterval(duration)
+            let profileName = profile.name
+
             Task {
                 try? await blockEngine.startBlock(
                     profile: profile,
@@ -81,6 +84,9 @@ final class ScheduleEvaluator {
                     appState: appState,
                     modelContext: modelContext
                 )
+
+                let notificationService = NotificationService()
+                notificationService.sendBlockStarted(profileName: profileName, endDate: endDate)
             }
 
             break // Only start one block at a time
