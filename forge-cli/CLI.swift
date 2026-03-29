@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 
 @main
 struct ForgeCLI: ParsableCommand {
@@ -17,6 +18,27 @@ struct StatusCommand: ParsableCommand {
     )
 
     func run() throws {
-        print("No active block.")
+        let defaults = UserDefaults(suiteName: "group.app.forge")
+        let isActive = defaults?.bool(forKey: "isBlockActive") ?? false
+
+        guard isActive else {
+            print("No active block.")
+            return
+        }
+
+        let profileName = defaults?.string(forKey: "activeProfileName") ?? "Unknown"
+        if let endDate = defaults?.object(forKey: "blockEndDate") as? Date {
+            let remaining = endDate.timeIntervalSinceNow
+            if remaining > 0 {
+                let minutes = Int(remaining / 60)
+                let hours = minutes / 60
+                let mins = minutes % 60
+                print("\(profileName) — \(hours)h \(mins)m remaining")
+            } else {
+                print("\(profileName) — block has expired")
+            }
+        } else {
+            print("\(profileName) — active")
+        }
     }
 }

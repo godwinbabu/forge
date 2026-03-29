@@ -68,6 +68,10 @@ final class BlockEngine {
         if !appBundleIDs.isEmpty {
             workspaceAppBlocker.activate(bundleIDs: Set(appBundleIDs))
         }
+
+        if profile.clearBrowserCaches {
+            BrowserCacheClearer.clearCaches()
+        }
     }
 
     func extendBlock(
