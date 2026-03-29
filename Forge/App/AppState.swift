@@ -58,6 +58,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case profiles = "Profiles"
     case schedules = "Schedules"
+    case insights = "Insights"
     case settings = "Settings"
 
     var id: String { rawValue }
@@ -67,6 +68,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .dashboard: "gauge.with.dots.needle.bottom.50percent"
         case .profiles: "person.crop.rectangle.stack"
         case .schedules: "calendar"
+        case .insights: "chart.bar.fill"
         case .settings: "gear"
         }
     }
