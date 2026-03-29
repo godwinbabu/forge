@@ -29,10 +29,22 @@ struct ProfileDraft {
     var expandSubdomains: Bool
     var allowLocalNetwork: Bool
     var clearBrowserCaches: Bool
+
+    static var defaults: ProfileDraft { ... }  // sensible defaults for new profile
+    init(name:iconName:colorHex:isBlocklist:domains:appBundleIDs:expandSubdomains:allowLocalNetwork:clearBrowserCaches:)
 }
 ```
 
-`ProfileDraft` can be initialized from a `BlockProfile` (edit) or with defaults (create).
+`ProfileDraft` lives in ForgeKit (testable). The Forge app creates a draft from a `BlockProfile` at the call site: `ProfileDraft(name: profile.name, iconName: profile.iconName, ...)`.
+
+### Editor Mode
+
+`ProfileEditorView` takes an optional `BlockProfile?`:
+- **nil** → create mode (starts with `ProfileDraft.defaults`)
+- **non-nil** → edit mode (starts with draft initialized from the existing profile)
+
+On Save in create mode: insert a new `BlockProfile` into SwiftData.
+On Save in edit mode: update the existing `BlockProfile`'s fields from the draft.
 
 ### Navigation
 
@@ -75,24 +87,59 @@ Main form with sections:
 
 ### DomainListEditor
 
-Manages the `domains: [String]` array.
+Manages the `domains: [String]` array on the draft.
 
 - Text field with "Add" button for single domain entry
 - "Paste multiple" button opens a `TextEditor` sheet for pasting newline-separated domains
 - Each domain shown as a row with delete button
-- **Validation:** Strip whitespace, lowercase, reject empty strings and strings without a dot
+- Validation delegated to `DomainValidator` (ForgeKit)
 - Duplicate domains silently ignored
+
+### DomainValidator (ForgeKit)
+
+Pure logic, testable:
+
+```swift
+public enum DomainValidator {
+    /// Normalize and validate a domain string.
+    /// Returns nil if invalid (empty, no dot).
+    public static func validate(_ input: String) -> String?
+
+    /// Validate and deduplicate a list of domain strings.
+    public static func validateList(_ inputs: [String]) -> [String]
+}
+```
+
+Rules: strip whitespace, lowercase, reject empty strings and strings without a dot. `"  Reddit.COM  "` → `"reddit.com"`. `"reddit"` → nil.
 
 ### AppPickerView
 
 Presented as a sheet from the Apps section.
 
-- Enumerates installed apps by scanning `/Applications` and `/System/Applications` for `.app` bundles
-- Each app shown with icon (`NSWorkspace.shared.icon(forFile:)`) + display name + bundle ID
+- Uses `InstalledAppScanner` to enumerate installed apps
+- Each app shown with icon + display name + bundle ID
 - Search field to filter by name
 - Checkmark toggle for selection
 - Selected bundle IDs written back to draft's `appBundleIDs`
 - Sorted alphabetically by display name
+
+### InstalledAppScanner (Forge/Services)
+
+Scans `/Applications` and `/System/Applications` recursively for `.app` bundles:
+
+```swift
+struct InstalledApp: Identifiable {
+    let id: String         // bundle ID
+    let displayName: String
+    let path: URL
+}
+
+enum InstalledAppScanner {
+    static func scan() -> [InstalledApp]
+}
+```
+
+App icons loaded lazily in the view via `NSWorkspace.shared.icon(forFile:)`.
 
 ### IconPickerView
 
@@ -113,20 +160,23 @@ Displayed as `LazyVGrid` with 6 columns. Selected icon highlighted with accent c
 
 ### ProfileImportExport
 
-**Export:**
-- Button in `ProfileListView` toolbar or context menu per profile
-- Encodes profile as `PresetProfileData` JSON
-- Presents `NSSavePanel` with `.json` file type
-- Default filename: `{profile-name}.json`
+Separated into logic (ForgeKit-testable) and UI (Forge views):
 
-**Import:**
-- Button in `ProfileListView` toolbar
-- Presents `NSOpenPanel` for `.json` files
-- Decodes `PresetProfileData` from file
-- Creates new `BlockProfile` from imported data
-- Shows error alert if JSON is invalid
+**Logic (ForgeKit):**
 
-Uses existing `PresetProfileData` struct for the JSON format. Import creates a new profile with a fresh UUID, `isPinned: false`, and next available `sortOrder`.
+```swift
+public enum ProfileSerializer {
+    public static func encode(_ draft: ProfileDraft) throws -> Data
+    public static func decode(_ data: Data) throws -> ProfileDraft
+}
+```
+
+Uses `PresetProfileData` as the JSON format (already exists and is `Codable`). Encoding maps `ProfileDraft` → `PresetProfileData` → JSON. Decoding maps JSON → `PresetProfileData` → `ProfileDraft`.
+
+**UI (Forge):**
+- Export: context menu on profile row in `ProfileListView`, calls `ProfileSerializer.encode`, presents `NSSavePanel`
+- Import: toolbar button in `ProfileListView`, presents `NSOpenPanel`, calls `ProfileSerializer.decode`, creates new `BlockProfile`
+- Error alert shown if JSON is invalid
 
 ---
 
@@ -136,22 +186,23 @@ Uses existing `PresetProfileData` struct for the JSON format. Import creates a n
 
 | File | Purpose |
 |------|---------|
-| `ForgeKit/ProfileDraft.swift` | `ProfileDraft` struct with init from `BlockProfile` and defaults |
+| `ForgeKit/ProfileDraft.swift` | `ProfileDraft` struct with defaults and field-by-field init |
+| `ForgeKit/DomainValidator.swift` | Domain validation and normalization logic |
+| `ForgeKit/ProfileSerializer.swift` | Encode/decode ProfileDraft to/from JSON |
 | `Forge/Views/Profiles/ProfileEditorView.swift` | Main editor form |
-| `Forge/Views/Profiles/DomainListEditor.swift` | Domain list add/remove/paste/validate |
+| `Forge/Views/Profiles/DomainListEditor.swift` | Domain list add/remove/paste UI |
 | `Forge/Views/Profiles/AppPickerView.swift` | Installed app browser with selection |
 | `Forge/Views/Profiles/IconPickerView.swift` | Curated SF Symbol grid |
 | `Forge/Services/InstalledAppScanner.swift` | Scan /Applications for .app bundles |
-| `Forge/Services/ProfileImportExport.swift` | JSON export via NSSavePanel, import via NSOpenPanel |
-| `ForgeTests/ProfileDraftTests.swift` | Draft init, validation |
-| `ForgeTests/DomainValidationTests.swift` | Domain validation logic |
-| `ForgeTests/InstalledAppScannerTests.swift` | App scanning logic |
+| `ForgeTests/ProfileDraftTests.swift` | Draft defaults, field init |
+| `ForgeTests/DomainValidatorTests.swift` | Validation rules, normalization, deduplication |
+| `ForgeTests/ProfileSerializerTests.swift` | Encode/decode roundtrip |
 
 ### Modify
 
 | File | Change |
 |------|--------|
-| `Forge/Views/Profiles/ProfileListView.swift` | Add toolbar buttons, sheet presentation, delete confirmation, context menu |
+| `Forge/Views/Profiles/ProfileListView.swift` | Add toolbar buttons (+, import), sheet presentation, delete confirmation, export context menu |
 
 ---
 
@@ -171,11 +222,11 @@ Save is disabled when name is empty.
 ## Testing
 
 **Unit tests (ForgeKit scheme):**
-- `ProfileDraft` init from defaults has correct values
-- `ProfileDraft` init from `BlockProfile` copies all fields
-- Domain validation: accepts "reddit.com", rejects "reddit", strips whitespace, lowercases
-- Domain deduplication
-- `InstalledAppScanner` finds at least Safari and Finder on any Mac
+- `ProfileDraft.defaults` has expected values (name empty, icon "shield.fill", etc.)
+- `DomainValidator.validate`: accepts "reddit.com", rejects "reddit", strips whitespace, lowercases
+- `DomainValidator.validateList`: deduplicates, preserves order of first occurrence
+- `ProfileSerializer`: encode → decode roundtrip preserves all fields
+- `ProfileSerializer.decode`: rejects invalid JSON with descriptive error
 
 **Build verification:**
 - Full project compiles
