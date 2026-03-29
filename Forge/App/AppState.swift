@@ -14,6 +14,7 @@ final class AppState {
 
     // UI state
     var selectedSidebarItem: SidebarItem = .dashboard
+    var showingCommandPalette = false
     var showingDurationPicker = false
     var selectedDuration: TimeInterval = 3600 // 1 hour default
 

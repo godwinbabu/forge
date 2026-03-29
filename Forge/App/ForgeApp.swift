@@ -34,6 +34,20 @@ struct ForgeApp: App {
                     bypassDetector.startMonitoring(appState: appState)
                 }
         }
+        .commands {
+            CommandGroup(after: .toolbar) {
+                Button("Command Palette") {
+                    appState.showingCommandPalette.toggle()
+                }
+                .keyboardShortcut("k", modifiers: .command)
+            }
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings...") {
+                    appState.selectedSidebarItem = .settings
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+        }
         .modelContainer(for: [
             BlockProfile.self,
             BlockSession.self,

@@ -7,6 +7,7 @@ final class BlockEngine {
     private let xpcClient = ExtensionXPCClient()
     private var expiryTimer: Timer?
     private let workspaceAppBlocker = WorkspaceAppBlocker()
+    private let notificationService = NotificationService()
 
     func startBlock(
         profile: BlockProfile,
@@ -61,6 +62,9 @@ final class BlockEngine {
         scheduleExpiryTimer(endDate: ruleset.endDate, appState: appState)
         writeSharedStatus(appState: appState)
 
+        notificationService.requestPermission()
+        notificationService.scheduleBlockEndingSoon(endDate: ruleset.endDate)
+
         if !appBundleIDs.isEmpty {
             workspaceAppBlocker.activate(bundleIDs: Set(appBundleIDs))
         }
@@ -105,9 +109,13 @@ final class BlockEngine {
             print("[BlockEngine] Failed to deactivate ruleset: \(error)")
         }
 
+        let attempts = appState.blockedAttemptCount
         appState.deactivateBlock()
         workspaceAppBlocker.deactivate()
         writeSharedStatus(appState: appState)
+
+        notificationService.cancelPending()
+        notificationService.sendBlockEnded(blockedAttempts: attempts)
     }
 
     func completeBypass(appState: AppState, modelContext: ModelContext) async {
