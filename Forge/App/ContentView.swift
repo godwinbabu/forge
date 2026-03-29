@@ -32,6 +32,21 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 700, minHeight: 500)
+        .overlay {
+            if appState.showingCommandPalette {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            appState.showingCommandPalette = false
+                        }
+
+                    CommandPaletteView(isPresented: $state.showingCommandPalette)
+                        .padding(.top, 100)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
+            }
+        }
         .task {
             scheduleEvaluator.start(
                 appState: appState,
