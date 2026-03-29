@@ -20,6 +20,8 @@ struct ContentView: View {
                 DashboardView()
             case .profiles:
                 ProfileListView()
+            case .schedules:
+                ScheduleListView()
             case .settings:
                 SettingsView()
             }
