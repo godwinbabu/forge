@@ -8,34 +8,41 @@ struct ForgeApp: App {
     @State private var blockEngine = BlockEngine()
     @State private var bypassDetector = BypassDetector()
     @State private var appDelegate = ForgeAppDelegate()
+    @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "forge.onboarding.completed")
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .overlay {
-                    if appState.isBypassActive {
-                        BypassSheetView(
-                            appState: appState,
-                            blockEngine: blockEngine
-                        )
-                    }
-                }
-                .environment(appState)
-                .environment(blockEngine)
-                .task {
-                    let defaults = UserDefaults(suiteName: "group.app.forge") ?? .standard
-                    if let persisted = BypassPersistence.restore(from: defaults) {
-                        appState.isBypassActive = true
-                        appState.bypassStage = persisted.stage
-                        if persisted.stage == .cooldown,
-                           let cooldownEnd = defaults.object(forKey: BypassPersistence.Keys.cooldownEndDate) as? Date {
-                            appState.cooldownEndDate = cooldownEnd
+            Group {
+                if onboardingCompleted {
+                    ContentView()
+                        .overlay {
+                            if appState.isBypassActive {
+                                BypassSheetView(
+                                    appState: appState,
+                                    blockEngine: blockEngine
+                                )
+                            }
                         }
-                    }
-                    bypassDetector.startMonitoring(appState: appState)
-                    appDelegate.appState = appState
-                    NSApplication.shared.delegate = appDelegate
+                } else {
+                    OnboardingView(isComplete: $onboardingCompleted)
                 }
+            }
+            .environment(appState)
+            .environment(blockEngine)
+            .task {
+                let defaults = UserDefaults(suiteName: "group.app.forge") ?? .standard
+                if let persisted = BypassPersistence.restore(from: defaults) {
+                    appState.isBypassActive = true
+                    appState.bypassStage = persisted.stage
+                    if persisted.stage == .cooldown,
+                       let cooldownEnd = defaults.object(forKey: BypassPersistence.Keys.cooldownEndDate) as? Date {
+                        appState.cooldownEndDate = cooldownEnd
+                    }
+                }
+                bypassDetector.startMonitoring(appState: appState)
+                appDelegate.appState = appState
+                NSApplication.shared.delegate = appDelegate
+            }
         }
         .commands {
             CommandGroup(after: .toolbar) {
