@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+# Required GitHub Secrets:
+#   CODE_SIGN_IDENTITY  — Developer ID certificate name (e.g. "Developer ID Application: ...")
+#   DEVELOPMENT_TEAM    — Apple team ID
+#   APPLE_ID            — Apple ID email for notarization
+#   APPLE_ID_PASSWORD   — App-specific password for notarization
+
+jobs:
+  build-and-release:
+    name: Build, Notarize, and Release
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          brew install xcodegen create-dmg
+          gem install xcpretty
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve SPM dependencies
+        run: xcodebuild -resolvePackageDependencies -scheme Forge -clonedSourcePackagesDirPath .spm
+
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -scheme Forge \
+            -destination 'platform=macOS' \
+            -archivePath build/Forge.xcarchive \
+            -clonedSourcePackagesDirPath .spm \
+            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
+            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}" \
+            CODE_SIGN_STYLE=Manual \
+            | xcpretty
+
+      - name: Export
+        run: |
+          cat > build/ExportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>developer-id</string>
+            <key>teamID</key>
+            <string>${{ secrets.DEVELOPMENT_TEAM }}</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath build/Forge.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.DEVELOPMENT_TEAM }}
+        run: |
+          xcrun notarytool submit build/export/Forge.app.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+      - name: Staple
+        run: |
+          xcrun stapler staple build/export/Forge.app
+
+      - name: Create DMG
+        run: |
+          create-dmg \
+            --volname "Forge" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "Forge.app" 150 190 \
+            --app-drop-link 450 190 \
+            --no-internet-enable \
+            "build/Forge-${GITHUB_REF_NAME}.dmg" \
+            "build/export/Forge.app"
+
+      - name: Generate appcast
+        run: |
+          ./Scripts/generate-appcast.sh build/Forge-${GITHUB_REF_NAME}.dmg ${GITHUB_REF_NAME}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/Forge-${{ github.ref_name }}.dmg
+          generate_release_notes: true
+          draft: false
